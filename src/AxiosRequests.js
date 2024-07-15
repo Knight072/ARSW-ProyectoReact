@@ -15,11 +15,17 @@ export const getTreasures = () => {
   return axios.get('http://localhost:8080/table/treasures/get');
 };
 
+//Función para crear actor
+export const createActor = (e) =>{
+  return axios.get('http://localhost:8080/actor/'+ e);
+}
+
 // Asignar las funciones a una variable
 const api = {
   getTable,
   createTreasures,
-  getTreasures
+  getTreasures,
+  createActor
 };
 
 // Exportar la variable como exportación por defecto
