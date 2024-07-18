@@ -5,6 +5,11 @@ export const getTable = () => {
   return axios.get('http://localhost:8080/table');
 };
 
+// Función para obtener el laberinto
+export const getActor = (id) => {
+  return axios.get('http://localhost:8080/actor/get/' + id);
+};
+
 // Función para crear tesoros
 export const createTreasures = () => {
   return axios.get('http://localhost:8080/table/treasures');
@@ -25,7 +30,8 @@ const api = {
   getTable,
   createTreasures,
   getTreasures,
-  createActor
+  createActor, 
+  getActor
 };
 
 // Exportar la variable como exportación por defecto

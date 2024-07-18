@@ -1,12 +1,11 @@
 // LobbyComponent.jsx
 import React, { useState, useEffect, useRef } from 'react';
+import WebSocketSingleton from './WebSocketSingleton';
 
 function LobbyComponent({ onStartGame }) {
   const [messages, setMessages] = useState([]);
-  const [isConnected, setIsConnected] = useState(false);
   const [gameState, setGameState] = useState([]);
-  const [actorId, setActorId] = useState('');
-  const websocket = useRef(null);
+  const websocketRef = useRef(null);
 
   const lobbyStyle = {
     textAlign: 'center',
@@ -33,88 +32,48 @@ function LobbyComponent({ onStartGame }) {
   };
 
   useEffect(() => {
-    return () => {
-      if (websocket.current) {
-        websocket.current.close();
-      }
-    };
-  }, []);
+    websocketRef.current = WebSocketSingleton.getInstance('ws://localhost:8080/ActorEndpoint');
 
-  const connectWebSocket = () => {
-    websocket.current = new WebSocket('ws://localhost:8080/ActorEndpoint');
-    
-    websocket.current.onopen = () => {
-      setIsConnected(true);
-      addToLog('Conexión establecida');
+    websocketRef.current.websocket.onmessage = (event) => {
+      addToLog(event.data);
+      handleMessage(event.data);
     };
 
-    websocket.current.onmessage = (event) => {
-      addToLog(`Recibido: ${event.data}`);
-      try {
-        if (event.data === "Connection established.") {
-          addToLog('Conexión establecida con el servidor');
-        } else {
-          const data = JSON.parse(event.data);
-          if (Array.isArray(data)) {
-            setGameState(data);
-          } else if (typeof data === 'object' && data.id && data.positionX !== undefined && data.positionY !== undefined) {
-            // Manejar actualización de posición de actor
-            console.log("llega");
-            renderGameArea();
-            addToLog(`Actor ${data.id} se movió a (${data.positionX}, ${data.positionY})`);
-            // Aquí podrías actualizar el estado del juego si es necesario
-          } else {
-            addToLog('Mensaje no reconocido: ' + event.data);
-          }
-        }
-      } catch (e) {
-        console.error('Error al procesar el mensaje:', e);
-      }
-    };
-
-    websocket.current.onerror = (error) => {
-      console.error('Error de WebSocket:', error);
+    const originalOnError = websocketRef.current.websocket.onerror;
+    websocketRef.current.websocket.onerror = (error) => {
+      originalOnError(error);
       addToLog('Error en la conexión');
     };
+  }, []);
+  
 
-    websocket.current.onclose = () => {
-      setIsConnected(false);
-      addToLog('Conexión cerrada');
-    };
-  };
-
-  const disconnectWebSocket = () => {
-    if (websocket.current) {
-      websocket.current.close();
+  const handleMessage = (data) => {
+    try {
+      const parsedData = JSON.parse(data);
+      if (Array.isArray(parsedData)) {
+        setGameState(parsedData);
+        addToLog('Laberinto actualizado');
+      } else if (typeof parsedData === 'object' && parsedData.id && parsedData.positionX !== undefined && parsedData.positionY !== undefined) {
+        sessionStorage.setItem('authToken', parsedData.id);
+        addToLog(`Actor ${parsedData.id} se movió a (${parsedData.positionX}, ${parsedData.positionY})`);
+      } else {
+        addToLog('Mensaje no reconocido: ' + data);
+      }
+    } catch (e) {
+      console.error('Error al procesar el mensaje:', e);
+      addToLog('Error al procesar el mensaje: ' + data);
     }
   };
 
   const createActor = (type) => {
-    if (websocket.current && websocket.current.readyState === WebSocket.OPEN) {
-      websocket.current.send(JSON.stringify({ tipoActor: type }));
-    } else {
-      addToLog('No conectado al servidor');
-    }
+      websocketRef.current.websocket.send(JSON.stringify({ tipoActor: type }));
+      addToLog('Actor creado');
+      getTable();
   };
 
-  const moveActor = (direction) => {
-    if (!actorId) {
-      addToLog('Por favor, ingrese un ID de actor');
-      return;
-    }
-    let posX = 0, posY = 0;
-    switch(direction) {
-      case 'up': posY = -1; break;
-      case 'down': posY = 1; break;
-      case 'left': posX = -1; break;
-      case 'right': posX = 1; break;
-    }
-    if (websocket.current && websocket.current.readyState === WebSocket.OPEN) {
-      websocket.current.send(JSON.stringify({ id: actorId, positionX: posX, positionY: posY }));
-    } else {
-      addToLog('No conectado al servidor');
-    }
-  };
+  const getTable = () =>{
+    websocketRef.current.websocket.send(JSON.stringify({ getTable: 'get' }));
+  }
 
   const addToLog = (message) => {
     setMessages(prev => [...prev, message]);
@@ -178,28 +137,12 @@ function LobbyComponent({ onStartGame }) {
 
   return (
     <div style={lobbyStyle}>
-      <h1>WebSocket Test - Actor Game</h1>
-      <div>
-        <button onClick={connectWebSocket} disabled={isConnected}>Conectar</button>
-        <button onClick={disconnectWebSocket} disabled={!isConnected}>Desconectar</button>
-      </div>
       <div>
         <button onClick={() => createActor(2)}>Crear Actor Tipo 2</button>
         <button onClick={() => createActor(3)}>Crear Actor Tipo 3</button>
+        <button onClick={() => getTable(3)}>Obtener Tablero</button>
       </div>
       {renderGameArea()}
-      <div>
-        <input 
-          type="text" 
-          value={actorId} 
-          onChange={(e) => setActorId(e.target.value)}
-          placeholder="ID del Actor"
-        />
-        <button onClick={() => moveActor('up')}>↑</button>
-        <button onClick={() => moveActor('down')}>↓</button>
-        <button onClick={() => moveActor('left')}>←</button>
-        <button onClick={() => moveActor('right')}>→</button>
-      </div>
       <div style={logStyle}>
         {messages.map((msg, index) => (
           <div key={index}>{msg}</div>

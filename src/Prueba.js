@@ -1,84 +1,69 @@
-// GameScene.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import Phaser from 'phaser';
+import WebSocketSingleton from './WebSocketSingleton';
+import { preloadPlayer, createPlayer, updatePlayer } from './Player';
+import { createMaze, getCellSize } from './Maze';
 import api from './AxiosRequests';
 import preloadTreasure from './Treasure';
 import { createTreasure } from './Treasure';
-import { createMaze, getCellSize } from './Maze';
-import { preloadPlayer, createPlayer, updatePlayer } from './Player';
 import LobbyComponent from './LobbyComponent';
-import WebSocketSingleton from './WebSocketSingleton';
 
 function GameScene() {
-  const [maze, setMaze] = useState(null);
-  const [treasures, setTreasures] = useState([]);
+  const [maze, setMaze] = useState([]);
   const [isGameStarted, setIsGameStarted] = useState(false);
-  const [isConnected, setIsConnected] = useState(false);
+  const [treasures, setTreasures] = useState([]);
   const gameRef = useRef(null);
   const gameContainerRef = useRef(null);
   const websocketRef = useRef(null);
 
   useEffect(() => {
-    const loadGameAssets = async () => {
-      try {
-        const mazeResponse = await api.getTable();
-        setMaze(mazeResponse.data);
-        await api.createTreasures();
-      const treasuresResponse = await api.getTreasures();
-      setTreasures(treasuresResponse.data);
-      } catch (error) {
-        console.error("Hubo un error con la API!", error);
-      }
-    };
-    loadGameAssets();
     console.log("Initializing WebSocket");
     websocketRef.current = WebSocketSingleton.getInstance('ws://localhost:8080/ActorEndpoint');
 
-    // Sobrescribir los manejadores de eventos
-    const originalOnOpen = websocketRef.current.websocket.onopen;
-    websocketRef.current.websocket.onopen = (event) => {
-      originalOnOpen(event);
-      setIsConnected(true);
-      console.log('WebSocket connection established');
+    websocketRef.current.websocket.onopen = () => {
+      console.log('WebSocket connection established 0');
+      setIsGameStarted(true);
     };
 
-    const originalOnClose = websocketRef.current.websocket.onclose;
-    websocketRef.current.websocket.onclose = (event) => {
-      originalOnClose(event);
-      setIsConnected(false);
-      console.log('WebSocket connection closed');
-    };
-
-    const originalOnMessage = websocketRef.current.websocket.onmessage;
     websocketRef.current.websocket.onmessage = (event) => {
-      originalOnMessage(event);
       handleWebSocketMessage(event.data);
     };
-
-    // Cleanup function
-    return () => {
-      if (websocketRef.current) {
-        websocketRef.current.disconnect();
-      }
+    
+    const fetchInitialData = async () => {
+        try {
+          await api.createTreasures();
+          const treasuresResponse = await api.getTreasures();
+          setTreasures(treasuresResponse.data);
+        } catch (error) {
+          console.error('Error fetching initial data:', error);
+        }
     };
+    fetchInitialData();
   }, []);
 
   const handleWebSocketMessage = (data) => {
     try {
       const parsedData = JSON.parse(data);
       if (Array.isArray(parsedData)) {
+        console.log('Received maze data:', parsedData);
         setMaze(parsedData);
+        reloadGame();
       } else if (typeof parsedData === 'object' && parsedData.id && parsedData.positionX !== undefined && parsedData.positionY !== undefined) {
-        // Actualizar la posición del jugador si es necesario
+        // Update player position if needed
         console.log(`Actor ${parsedData.id} moved to (${parsedData.positionX}, ${parsedData.positionY})`);
+        reloadGame();
       }
     } catch (e) {
       console.error('Error processing WebSocket message:', e);
     }
   };
 
+  const reloadGame = () => {
+    setIsGameStarted(false); // Set isGameStarted to false to force reload
+  };
+
   useEffect(() => {
-    if (!maze || !isGameStarted || !gameContainerRef.current) return;
+    if (!maze.length || !isGameStarted || !gameContainerRef.current) return;
 
     const config = {
       type: Phaser.AUTO,
@@ -106,25 +91,27 @@ function GameScene() {
     gameRef.current = new Phaser.Game(config);
 
     function preload() {
-      preloadTreasure(this);
       preloadPlayer(this);
+      preloadTreasure(this);
     }
 
     let player;
 
-    function create() {
-      createMaze(this, maze);
+    async function create() {
+      const walls = createMaze(this, maze);
       createTreasure(this, treasures, getCellSize(maze));
-      player = createPlayer(this, getCellSize(maze));
-      if (!player) {
-        console.error('Failed to create player');
+      const authToken = sessionStorage.getItem('authToken');
+      if(authToken !== undefined && authToken !== null && authToken !== '') {
+        player = await createPlayer(this, getCellSize(maze));
+        this.physics.add.collider(player.player, walls);
       }
       this.scale.on('resize', resize, this);
     }
 
     function update() {
       if (player && player.player) {
-        updatePlayer(player, getCellSize(maze));
+        updatePlayer(player, getCellSize(maze), websocketRef.current);
+        websocketRef.current.websocket.send(JSON.stringify({ getTable: 'get' }));
       }
     }
 
@@ -141,10 +128,6 @@ function GameScene() {
     };
   }, [maze, treasures, isGameStarted]);
 
-  const handleStartGame = () => {
-    setIsGameStarted(true);
-  };
-
   const containerStyle = {
     width: '100vw',
     height: '100vh',
@@ -152,6 +135,10 @@ function GameScene() {
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f0f0f0',
+  };
+
+  const handleStartGame = () => {
+    setIsGameStarted(true);
   };
 
   return (
@@ -166,5 +153,3 @@ function GameScene() {
 }
 
 export default GameScene;
-
-

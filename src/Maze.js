@@ -5,6 +5,9 @@ export function createMaze(scene, maze) {
   scene.cameras.main.setBackgroundColor('#D3D3D3'); // Establecer color de fondo de la cámara principal
   const cellSize = Math.min(window.innerWidth, window.innerHeight) / maze.length; // Tamaño de la celda del laberinto
 
+  // Crear un grupo estático para los muros
+  const walls = scene.physics.add.staticGroup();
+
   // Iterar sobre el laberinto para dibujar las cuadrículas
   for (let row = 0; row < maze.length; row++) {
     for (let col = 0; col < maze[row].length; col++) {
@@ -12,6 +15,10 @@ export function createMaze(scene, maze) {
       switch (maze[row][col]) {
         case 1:
           color = '#2D3436'; // Color para muros
+          const wall = walls.create(col * cellSize, row * cellSize, 'wall')
+            .setOrigin(0, 0)
+            .setDisplaySize(cellSize, cellSize)
+            .refreshBody();
           break;
         case 4:
           color = '#FFD700'; // Color amarillo para un valor específico
@@ -34,6 +41,7 @@ export function createMaze(scene, maze) {
       }
     }
   }
+  return walls;
 }
 
 // Obtener el tamaño de la celda del laberinto
