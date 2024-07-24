@@ -32,7 +32,7 @@ function LobbyComponent({ onStartGame }) {
   };
 
   useEffect(() => {
-    websocketRef.current = WebSocketSingleton.getInstance('ws://localhost:8080/ActorEndpoint');
+    websocketRef.current = WebSocketSingleton.getInstance('wss://'+window.location.host+'/ActorEndpoint');
 
     websocketRef.current.websocket.onmessage = (event) => {
       addToLog(event.data);
@@ -68,12 +68,7 @@ function LobbyComponent({ onStartGame }) {
   const createActor = (type) => {
       websocketRef.current.websocket.send(JSON.stringify({ tipoActor: type }));
       addToLog('Actor creado');
-      getTable();
   };
-
-  const getTable = () =>{
-    websocketRef.current.websocket.send(JSON.stringify({ getTable: 'get' }));
-  }
 
   const addToLog = (message) => {
     setMessages(prev => [...prev, message]);
@@ -138,9 +133,8 @@ function LobbyComponent({ onStartGame }) {
   return (
     <div style={lobbyStyle}>
       <div>
-        <button onClick={() => createActor(2)}>Crear Actor Tipo 2</button>
-        <button onClick={() => createActor(3)}>Crear Actor Tipo 3</button>
-        <button onClick={() => getTable(3)}>Obtener Tablero</button>
+        <button onClick={() => createActor(2)}>Crear Policía</button>
+        <button onClick={() => createActor(3)}>Crear Ladrón</button>
       </div>
       {renderGameArea()}
       <div style={logStyle}>

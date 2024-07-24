@@ -2,27 +2,32 @@ import axios from 'axios';
 
 // Función para obtener el laberinto
 export const getTable = () => {
-  return axios.get('http://localhost:8080/table');
+  return axios.get('https://'+window.location.host+'/table');
 };
 
 // Función para obtener el laberinto
 export const getActor = (id) => {
-  return axios.get('http://localhost:8080/actor/get/' + id);
+  return axios.get('https://'+window.location.host+'/actor/get/' + id);
 };
 
 // Función para crear tesoros
 export const createTreasures = () => {
-  return axios.get('http://localhost:8080/table/treasures');
+  return axios.get('https://'+window.location.host+'/table/treasures');
 };
 
 // Función para obtener tesoros
 export const getTreasures = () => {
-  return axios.get('http://localhost:8080/table/treasures/get');
+  return axios.get('https://'+window.location.host+'/table/treasures/get');
 };
 
 //Función para crear actor
 export const createActor = (e) =>{
-  return axios.get('http://localhost:8080/actor/'+ e);
+  return axios.get('https://'+window.location.host+'/actor/'+ e);
+}
+
+//Función para obtener ticket
+export const getTicket = () =>{
+  return axios.get('https://'+window.location.host+'/getticket');
 }
 
 // Asignar las funciones a una variable
@@ -31,7 +36,8 @@ const api = {
   createTreasures,
   getTreasures,
   createActor, 
-  getActor
+  getActor,
+  getTicket
 };
 
 // Exportar la variable como exportación por defecto

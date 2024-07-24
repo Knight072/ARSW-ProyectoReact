@@ -1,11 +1,13 @@
 // Player.js
-import PlayerImage from './assets/Player.png';
+import ThiefImage from './assets/Thief.png';
+import PoliceImage from './assets/Police.png';
 import { getActor } from './AxiosRequests';
 
 
 // Precargar la imagen del jugador
 export function preloadPlayer(scene) {
-  scene.load.image('player', PlayerImage);
+  scene.load.image('thief', ThiefImage);
+  scene.load.image('police', PoliceImage);
 }
 
 async function GetActor() {
@@ -13,7 +15,6 @@ async function GetActor() {
   try {
     const actorResponse = await getActor(authToken);
     const actor = actorResponse.data;
-    console.log(actor);
     return actor;
   } catch (error) {
     console.error('Error fetching initial data:', error);
@@ -23,10 +24,16 @@ async function GetActor() {
 
 // Crear el jugador en la escena
 export async function createPlayer(scene, cellSize) {
+  let player;
   const actor = await GetActor();
-  const player = scene.physics.add.sprite((actor.positionY) * cellSize, (actor.positionX) * cellSize, 'player').setOrigin(0, 0);
-  player.displayWidth = cellSize; // Ajustar el ancho del jugador
-  player.displayHeight = cellSize; // Ajustar la altura del jugador
+  if(actor.number === 3){
+    player = scene.physics.add.sprite((actor.positionY) * cellSize, (actor.positionX) * cellSize, 'thief').setOrigin(0, 0);
+  }
+  else if(actor.number === 2){
+    player = scene.physics.add.sprite((actor.positionY) * cellSize, (actor.positionX) * cellSize, 'police').setOrigin(0, 0);
+  }
+  player.displayWidth = cellSize/1.2; // Ajustar el ancho del jugador
+  player.displayHeight = cellSize/1.2; // Ajustar la altura del jugador
 
   const cursors = scene.input.keyboard.createCursorKeys(); // Crear las teclas de control
 
@@ -37,7 +44,7 @@ export async function createPlayer(scene, cellSize) {
 
 // Actualizar la posición del jugador en cada frame
 export function updatePlayer({ player, cursors }, cellSize, socket) {
-  const speed = cellSize * 10; // Ajusta este valor según sea necesario
+  const speed = cellSize * 3; // Ajusta este valor según sea necesario
   player.setVelocity(0);
   let moved = false;
 
@@ -61,18 +68,45 @@ export function updatePlayer({ player, cursors }, cellSize, socket) {
     // Calcular las coordenadas de la celda
     const cellX = Math.floor(player.x / cellSize);
     const cellY = Math.floor(player.y / cellSize);
-
-    // Enviar las coordenadas a través del WebSocket
-    if (socket && socket.websocket.readyState === WebSocket.OPEN) {
-      const positionData = {
-        id: sessionStorage.getItem('authToken'), // Asegúrate de que el jugador tenga un ID único
-        positionX: cellY,
-        positionY: cellX
-      };
-      socket.websocket.send(JSON.stringify(positionData));
-    }
+    const positionData = {
+      id: sessionStorage.getItem('authToken'), // Asegúrate de que el jugador tenga un ID único
+      positionX: cellY,
+      positionY: cellX
+    };
+    socket.websocket.send(JSON.stringify(positionData));
   }
 }
 
-
-
+export function updateOtherPlayers(scene, cellSize, player, playersData) {
+  playersData.forEach((row, x) => {
+    row.forEach((cell, y) => {
+      const isMainPlayer = player && Math.floor(player.x / cellSize) === y && Math.floor(player.y / cellSize) === x;
+      if (cell === 3 && !isMainPlayer) {
+        let otherPlayer = scene.children.getByName(`otherPlayer_${x}_${y}`);
+        if (!otherPlayer) {
+          otherPlayer = scene.physics.add.sprite(y * cellSize, x * cellSize, 'thief')
+            .setOrigin(0, 0)
+            .setDisplaySize(cellSize/1.2, cellSize/1.2)
+            .setName(`otherPlayer_${x}_${y}`);
+        } else {
+          otherPlayer.setPosition(y * cellSize, x * cellSize);
+        }
+      } else if (cell === 2 && !isMainPlayer) {
+        let otherPlayer = scene.children.getByName(`otherPlayer_${x}_${y}`);
+        if (!otherPlayer) {
+          otherPlayer = scene.physics.add.sprite(y * cellSize, x * cellSize, 'police')
+            .setOrigin(0, 0)
+            .setDisplaySize(cellSize/1.2, cellSize/1.2)
+            .setName(`otherPlayer_${x}_${y}`);
+        } else {
+          otherPlayer.setPosition(y * cellSize, x * cellSize);
+        }
+      } else {
+        let otherPlayer = scene.children.getByName(`otherPlayer_${x}_${y}`);
+        if (otherPlayer) {
+          otherPlayer.destroy();
+        }
+      }
+    });
+  });
+}

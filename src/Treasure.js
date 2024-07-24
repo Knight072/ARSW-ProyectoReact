@@ -12,31 +12,58 @@ export default function preloadTreasure(scene) {
 
 // Crear los tesoros en la escena
 export function createTreasure(scene, treasures, cellSize) {
-  treasures.forEach(treasure => {
-    const { positionX, positionY, type } = treasure;
-    let imageKey;
+  // Crear un grupo para los tesoros
+  const treasureGroup = scene.add.group();
 
-    // Asignar la imagen según el tipo de tesoro
-    switch (type) {
-      case 'DiamondTreasure':
-        imageKey = 'diamond';
-        break;
-      case 'GoldTreasure':
-        imageKey = 'gold';
-        break;
-      case 'SilverTreasure':
-        imageKey = 'silver';
-        break;
-      default:
-        imageKey = 'diamond'; // Imagen por defecto para cualquier tipo no especificado
-        break;
-    }
+  Object.values(treasures).forEach(treasure => {
+    const { positionX, positionY, type } = treasure;
+    let imageKey = getTreasureImageKey(type);
 
     // Dibujar la imagen del tesoro y ajustar su tamaño
     const image = scene.add.image(positionY * cellSize, positionX * cellSize, imageKey)
-      .setOrigin(0, 0); // Establecer origen en la esquina superior izquierda
-    image.displayWidth = cellSize; // Ajustar el ancho de la imagen
-    image.displayHeight = cellSize; // Ajustar la altura de la imagen
+      .setOrigin(0, 0)
+      .setDisplaySize(cellSize, cellSize);
+
+    // Añadir la imagen al grupo
+    treasureGroup.add(image);
   });
+
+  // Guardar una referencia al grupo en la escena
+  scene.treasureGroup = treasureGroup;
+}
+
+export function updateTreasures(scene, cellSize, treasures) {
+  if (scene.treasureGroup) {
+    scene.treasureGroup.clear(true, true);
+  }
+
+  const treasureGroup = scene.add.group();
+
+  Object.values(treasures).forEach(treasure => {
+    const { positionX, positionY, type } = treasure;
+    let imageKey = getTreasureImageKey(type);
+
+    const image = scene.add.image(positionY * cellSize, positionX * cellSize, imageKey)
+      .setOrigin(0, 0)
+      .setDisplaySize(cellSize, cellSize);
+
+    treasureGroup.add(image);
+  });
+
+  scene.treasureGroup = treasureGroup;
+}
+
+// Función auxiliar para obtener la clave de imagen basada en el tipo de tesoro
+function getTreasureImageKey(type) {
+  switch (type) {
+    case 'DiamondTreasure':
+      return 'diamond';
+    case 'GoldTreasure':
+      return 'gold';
+    case 'SilverTreasure':
+      return 'silver';
+    default:
+      return 'diamond';
+  }
 }
 

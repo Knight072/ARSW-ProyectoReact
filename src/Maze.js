@@ -15,13 +15,10 @@ export function createMaze(scene, maze) {
       switch (maze[row][col]) {
         case 1:
           color = '#2D3436'; // Color para muros
-          const wall = walls.create(col * cellSize, row * cellSize, 'wall')
+          walls.create(col * cellSize, row * cellSize, 'wall')
             .setOrigin(0, 0)
             .setDisplaySize(cellSize, cellSize)
             .refreshBody();
-          break;
-        case 4:
-          color = '#FFD700'; // Color amarillo para un valor específico
           break;
         default:
           color = '#FFFFFF'; // Color por defecto para otros valores
